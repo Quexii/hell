@@ -85,13 +85,15 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
             .vertexShader = &shVertBullets,
             .fragmentShader = &shFragBullets,
             .layout = &layoutBullets,
-            .blend = GPU_BLEND_ALPHA,
+            .blend = GPU_BLEND_CUSTOM,
+            .customBlend = BLEND_ADDITIVE,
             .buffers =
                 (VertexBufferDesc[]){
                                      VERTEX_BUFFER(MeshVertex, 0, SDL_GPU_VERTEXINPUTRATE_VERTEX),
                                      VERTEX_BUFFER(BulletData, 1, SDL_GPU_VERTEXINPUTRATE_INSTANCE),
                                      },
             .numBuffers = 2,
+            .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
     }
     );
 
@@ -148,6 +150,7 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
 
 bool Graphics_Upload_Resources(Graphics *g, CopyPass *pass) {
     g->atlasBullets = GPU_LoadTexture(pass, "bullet_atlas.png");
+    g->atlasGeneric = GPU_LoadTexture(pass, "sprites_generic.png");
     g->white = GPU_LoadTexture(pass, "white.png");
     g->fontCinzelTexture = GPU_LoadTexture(pass, "cinzel-medium.png");
     g->fontRajdhaniTexture = GPU_LoadTexture(pass, "rajdhani-medium.png");
@@ -168,6 +171,8 @@ void Graphics_Release_Resources(Graphics *g, Device device) {
         GPU_ReleaseTexture(&g->fontCinzelTexture);
     if (g->white.handle)
         GPU_ReleaseTexture(&g->white);
+    if (g->atlasGeneric.handle)
+        GPU_ReleaseTexture(&g->atlasGeneric);
     if (g->atlasBullets.handle)
         GPU_ReleaseTexture(&g->atlasBullets);
     if (g->samplerLinear.handle)

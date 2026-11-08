@@ -18,7 +18,7 @@ typedef struct {
 
     void (*prepare)(Application *app, CommandBuffer *cmd);
 
-    void (*render)(Application *app, RenderPass *pass);
+    void (*render)(Application *app, CommandBuffer *cmd);
     void (*cleanup)(Application *app);
 } ApplicationVTable;
 

@@ -1,6 +1,6 @@
 [[vk::binding(0, 1)]]
 cbuffer Matrices : register(b0, space1) {
-    float4x4 model, view, projection;
+    float4x4 mvp;
 };
 
 struct VSInput {
@@ -19,9 +19,7 @@ struct VSOutput {
 
 VSOutput main(VSInput input) {
     VSOutput output;
-    output.position = mul(
-        projection,
-        mul(view, mul(model, float4(input.position, 0.0, 1.0))));
+    output.position = mul(mvp, float4(input.position, 0.0, 1.0));
     output.uv = input.uv;
     output.color = input.color;
     output.mode = input.mode;

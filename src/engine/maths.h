@@ -33,6 +33,12 @@ typedef struct {
     float x, y, w, h;
 } Rect;
 
+static const Vec4 WHITE = { 1.0f, 1.0f, 1.0f, 1.0 };
+static const Vec4 BLACK = { 0.0f, 0.0f, 0.0f, 1.0 };
+static const Vec4 RED = { 1.0f, 0.0f, 0.0f, 1.0 };
+static const Vec4 GREEN = { 0.0f, 1.0f, 0.0f, 1.0 };
+static const Vec4 BLUE = { 0.0f, 0.0f, 1.0f, 1.0 };
+
 uint32_t RGBA8(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 uint32_t MutCol_R(uint32_t c, uint8_t v);

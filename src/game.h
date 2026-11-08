@@ -7,17 +7,19 @@
 #include "engine/ui.h"
 #include "graphics.h"
 #include "pattern.h"
+#include "playfield.h"
 
 #include <stdint.h>
 
 typedef struct {
     Graphics gfx;
-    Buffer ssboBuffer;
+    Buffer ssboBulletUVs, ssboEntityUVs;
 
-    Batch bulletBatch, uiBatch, *batches[2];
+    Batch backdropBatch, entitiesBatch, bulletBatch, uiBatch, *batches[3];
     Renderer2D r2d;
     UIContext uiCtx;
     UI ui;
+    Playfield playfield;
     BulletSim bullets;
     Pattern pattern;
     float spawnTimer, dtTimer;

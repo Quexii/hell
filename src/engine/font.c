@@ -1,5 +1,5 @@
 #include "font.h"
-#include "engine/util.h"
+#include "util.h"
 
 #include <SDL3/SDL_filesystem.h>
 #include <stdbool.h>

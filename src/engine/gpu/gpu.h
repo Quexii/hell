@@ -128,6 +128,7 @@ typedef struct {
 
     SDL_GPUPrimitiveType primitive;
     SDL_GPUVertexInputRate inputRate;
+    SDL_GPUTextureFormat format;
 
     const VertexLayout *layout;
     VertexBufferDesc *buffers;
@@ -176,6 +177,7 @@ typedef struct {
     SDL_FColor clearColor;
     LoadOp loadOp;
     StoreOp storeOp;
+    Texture *texture;
 } FrameDesc;
 
 typedef struct {
@@ -212,6 +214,78 @@ typedef struct {
     uint32_t offset;
 } UploadArena;
 
+#define BLEND_ALPHA                                                                                \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,                                       \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA })
+
+#define BLEND_ADDITIVE                                                                             \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,                                       \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
+#define BLEND_ADDITIVE_FULL                                                                        \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
+#define BLEND_MULTIPLY                                                                             \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_DST_COLOR,                                       \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
+#define BLEND_SCREEN                                                                               \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_COLOR,                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
+#define BLEND_SUBTRACT                                                                             \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_REVERSE_SUBTRACT,                                     \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_SRC_ALPHA,                                       \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
+#define BLEND_PREMULTIPLIED                                                                        \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA })
+
+#define BLEND_MIN                                                                                  \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_MIN,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
+#define BLEND_MAX                                                                                  \
+    ((BlendDesc){ .colorOp = SDL_GPU_BLENDOP_MAX,                                                  \
+                  .alphaOp = SDL_GPU_BLENDOP_ADD,                                                  \
+                  .srcColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .dstColor = SDL_GPU_BLENDFACTOR_ONE,                                             \
+                  .srcAlpha = SDL_GPU_BLENDFACTOR_ZERO,                                            \
+                  .dstAlpha = SDL_GPU_BLENDFACTOR_ONE })
+
 GraphicsPipeline GPU_CreatePipeline(Device device, SDL_Window *window, const PipelineDesc *desc);
 void GPU_BindPipeline(RenderPass *pass, GraphicsPipeline pipeline);
 void GPU_ReleasePipeline(Device device, GraphicsPipeline pipeline);
@@ -238,6 +312,7 @@ void GPU_PushVertexData(CommandBuffer *cmd, uint32_t slot, const void *data, uin
 void GPU_PushFragmentData(CommandBuffer *cmd, uint32_t slot, const void *data, uint32_t length);
 void GPU_SubmitCommand(CommandBuffer *cmd);
 
+Frame GPU_BeginFrame(CommandBuffer *cmd, SDL_Window *window, FrameDesc *desc);
 Frame GPU_BeginFrame(CommandBuffer *cmd, SDL_Window *window, FrameDesc *desc);
 
 RenderPass GPU_BeginRenderPass(Frame *frame);

@@ -1,6 +1,7 @@
 #include "renderer.h"
 
-#include "engine/gpu/gpu.h"
+#include "gpu/gpu.h"
+#include "maths.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@ bool Batch_Create(Batch *out, Device device, const BatchDesc *desc) {
     *out = (Batch){
         .pipeline = desc->pipeline,
         .texture = desc->texture,
+        .target = desc->target,
         .sampler = desc->sampler,
         .lookup = desc->lookup,
         .gpu = gpu,
@@ -40,12 +42,17 @@ bool Batch_Create(Batch *out, Device device, const BatchDesc *desc) {
         .instanced = desc->instanced,
         .explicitDrawFn = desc->explicitDrawFn,
         .explicitDrawData = desc->explicitDrawData,
+        .cam = Mat4_Identity(),
     };
     return true;
 }
 
 void Batch_Clear(Batch *b) {
     b->count = 0;
+}
+
+void Batch_SetViewport(Batch *b, float width, float height) {
+    b->cam = Mat4_Ortho(0.f, width, height, 0.f, -1.f, 1.f);
 }
 
 void *Batch_Reserve(Batch *b, uint32_t n) {
@@ -63,13 +70,11 @@ void Batch_Release(Batch *b) {
     *b = (Batch){ 0 };
 }
 
-Renderer2D R2D_Create(Batch **batches, uint32_t batchCount) {
+Renderer2D R2D_Create(Batch **batches, Window *window, uint32_t batchCount) {
     return (Renderer2D){
         .batches = batches,
+        .window = window,
         .batchCount = batchCount,
-        .cam.model = Mat4_Identity(),
-        .cam.view = Mat4_Identity(),
-        .cam.proj = Mat4_Identity(),
     };
 }
 
@@ -87,10 +92,6 @@ bool R2D_Init(Renderer2D *r, CopyPass *pass) {
         return false;
     }
     return true;
-}
-
-void R2D_SetViewport(Renderer2D *r, float width, float height) {
-    r->cam.proj = Mat4_Ortho(0, width, height, 0, -1.f, 1.f);
 }
 
 void R2D_Begin(Renderer2D *r) {
@@ -128,41 +129,109 @@ void R2D_Upload(Renderer2D *r, CommandBuffer *cmd) {
     GPU_EndCopy(&pass);
 }
 
-void R2D_Draw(Renderer2D *r, RenderPass *pass) {
-    bool boundOnce = false;
+void R2D_Draw(Renderer2D *r, CommandBuffer *cmd) {
+    if (!r || !cmd || !cmd->handle)
+        return;
+
+    Texture *currentTarget = NULL;
+    bool hasPass = false;
+
+    RenderPass pass = { 0 };
+
+    Frame swapchainFrame = { 0 };
+    bool swapchainAcquired = false;
 
     for (uint32_t i = 0; i < r->batchCount; i++) {
         Batch *b = r->batches[i];
-        if (b->count == 0)
+
+        if (!b || b->count == 0)
             continue;
 
-        if (b->explicitDrawFn)
-            b->explicitDrawFn(r, pass, b->explicitDrawData);
-        else {
-            GPU_BindPipeline(pass, b->pipeline);
-
-            if (!boundOnce) {
-                GPU_PushVertexData(pass->cmd, 0, &r->cam, sizeof(Matrices));
-                boundOnce = true;
+        if (!hasPass || b->target != currentTarget) {
+            if (hasPass) {
+                GPU_EndRenderPass(&pass);
+                hasPass = false;
             }
 
-            if (b->instanced)
-                Mesh_Bind(pass, &r->quad);
-            GPU_BindVBO(pass, &b->gpu, 0, b->instanced ? 1 : 0);
+            currentTarget = b->target;
+            bool renderedBefore = false;
 
-            if (b->texture && b->sampler)
-                GPU_BindFragmentSampler(
-                    pass, (Texture *[]){ b->texture }, (Sampler *[]){ b->sampler }, 1, 0
-                );
-            if (b->lookup)
-                GPU_BindVertexStorageBuffer(pass, b->lookup, 0);
+            for (uint32_t j = 0; j < i; j++) {
+                Batch *previous = r->batches[j];
 
-            if (b->instanced)
-                Mesh_Draw(pass, &r->quad, b->count);
-            else
-                GPU_DrawPrimitives(pass, b->count, 1, 0, 0);
+                if (previous && previous->count > 0 && previous->target == currentTarget) {
+                    renderedBefore = true;
+                    break;
+                }
+            }
+
+            FrameDesc desc = {
+                .texture = currentTarget,
+                .clearColor = { 0.f, 0.f, 0.f, 1.f },
+                .loadOp = renderedBefore ? LOADOP_LOAD : LOADOP_CLEAR,
+                .storeOp = STOREOP_STORE
+            };
+
+            Frame frame = { 0 };
+
+            if (!currentTarget && swapchainAcquired) {
+                frame = swapchainFrame;
+                frame.desc = &desc;
+            } else {
+                frame = GPU_BeginFrame(cmd, r->window->handle, &desc);
+
+                if (!frame.swapchainTexture) {
+                    SDL_Log("R2D_Draw: Failed to acquire render target: %s", SDL_GetError());
+                    return;
+                }
+
+                if (!currentTarget) {
+                    swapchainFrame = frame;
+                    swapchainAcquired = true;
+                }
+            }
+
+            pass = GPU_BeginRenderPass(&frame);
+
+            if (!pass.handle) {
+                SDL_Log("R2D_Draw: Failed to begin render pass: %s", SDL_GetError());
+                return;
+            }
+
+            hasPass = true;
+
+            GPU_PushVertexData(cmd, 0, &b->cam, sizeof(Mat4));
         }
+
+        if (b->explicitDrawFn) {
+            b->explicitDrawFn(r, &pass, b->explicitDrawData);
+            continue;
+        }
+
+        GPU_BindPipeline(&pass, b->pipeline);
+
+        if (b->instanced)
+            Mesh_Bind(&pass, &r->quad);
+
+        GPU_BindVBO(&pass, &b->gpu, 0, b->instanced ? 1 : 0);
+
+        if (b->texture && b->sampler) {
+            GPU_BindFragmentSampler(
+                &pass, (Texture *[]){ b->texture }, (Sampler *[]){ b->sampler }, 1, 0
+            );
+        }
+
+        if (b->lookup)
+            GPU_BindVertexStorageBuffer(&pass, b->lookup, 0);
+
+        if (b->instanced)
+            Mesh_Draw(&pass, &r->quad, b->count);
+        else
+            GPU_DrawPrimitives(&pass, b->count, 1, 0, 0);
     }
+
+    if (hasPass)
+        GPU_EndRenderPass(&pass);
 }
 
 void R2D_Destroy(Renderer2D *r) {

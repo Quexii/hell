@@ -90,7 +90,10 @@ GraphicsPipeline GPU_CreatePipeline(Device device, SDL_Window *window, const Pip
     }
 
     SDL_GPUColorTargetDescription colorTarget = {
-        .format = SDL_GetGPUSwapchainTextureFormat(device, window),
+        .format = desc->format != SDL_GPU_TEXTUREFORMAT_INVALID
+                      ? desc->format
+                      : SDL_GetGPUSwapchainTextureFormat(device, window),
+
         .blend_state = GPU_GetBlendState(desc)
     };
 
@@ -285,14 +288,18 @@ void GPU_SubmitCommand(CommandBuffer *cmd) {
 
 Frame GPU_BeginFrame(CommandBuffer *cmd, SDL_Window *window, FrameDesc *desc) {
     Frame frame = { .cmd = cmd, .device = cmd->device, .desc = desc };
-    if (!SDL_WaitAndAcquireGPUSwapchainTexture(
-            cmd->handle, window, &frame.swapchainTexture, &frame.width, &frame.height
-        )) {
-        SDL_LogError(
-            SDL_LOG_CATEGORY_RENDER,
-            "Failed -> SDL_AcquireGPUSwapchainTexture(...)\n%s",
-            SDL_GetError()
-        );
+    if (desc->texture)
+        frame.swapchainTexture = desc->texture->handle;
+    else {
+        if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+                cmd->handle, window, &frame.swapchainTexture, &frame.width, &frame.height
+            )) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                "Failed -> SDL_AcquireGPUSwapchainTexture(...)\n%s",
+                SDL_GetError()
+            );
+        }
     }
     return frame;
 }

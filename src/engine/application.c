@@ -1,5 +1,6 @@
 #include "application.h"
 
+#include "input.h"
 #include "util.h"
 
 #include <SDL3/SDL.h>
@@ -106,13 +107,16 @@ int main(void) {
 
     FrameTimer *timer = &app.window->frameTimer;
     double accumulator = 0.0;
-    FrameProfiler profiler = { 0 };
+    // FrameProfiler profiler = { 0 };
 
     const double tickTime = 1.0 / 60.0;
     const int maxUpdates = 5;
 
+    Input_Init();
+
     while (app.running) {
         FrameTimer_Update(timer);
+        Input_BeginFrame();
 
         double dt = timer->delta;
         if (dt > 0.25)
@@ -129,6 +133,8 @@ int main(void) {
                 app.window->width = event.window.data1;
                 app.window->height = event.window.data2;
             }
+
+            Input_HandleEvent(&event);
 
             if (app.vtable.event)
                 app.vtable.event(&app, &event);
@@ -156,45 +162,44 @@ int main(void) {
         if (!cmd.handle)
             break;
 
-        uint64_t t0 = SDL_GetPerformanceCounter();
+        // uint64_t t0 = SDL_GetPerformanceCounter();
 
         if (app.vtable.prepare)
             app.vtable.prepare(&app, &cmd);
 
-        uint64_t t1 = SDL_GetPerformanceCounter();
+        // uint64_t t1 = SDL_GetPerformanceCounter();
+        //
+        // FrameDesc desc = {
+        //     .clearColor = { 0.f, 0.f, 0.f, 1.f },
+        //       .loadOp = LOADOP_CLEAR, .storeOp = STOREOP_STORE
+        // };
 
-        FrameDesc desc = {
-            .clearColor = { 0.f, 0.f, 0.f, 1.f },
-              .loadOp = LOADOP_CLEAR, .storeOp = STOREOP_STORE
-        };
-
-        Frame frame = GPU_BeginFrame(&cmd, app.window->handle, &desc);
-
-        uint64_t t2 = SDL_GetPerformanceCounter(), t3;
-
-        if (frame.swapchainTexture) {
-            RenderPass pass = GPU_BeginRenderPass(&frame);
-
-            if (pass.handle) {
-                if (app.vtable.render)
-                    app.vtable.render(&app, &pass);
-
-                GPU_EndRenderPass(&pass);
-            }
-            profiler.acquiredFrames++;
-
-            t3 = SDL_GetPerformanceCounter();
-            GPU_SubmitCommand(&cmd);
-        } else {
-            profiler.skippedFrames++;
-            SDL_CancelGPUCommandBuffer(cmd.handle);
-
-            t3 = SDL_GetPerformanceCounter();
-        }
-
-        uint64_t t4 = SDL_GetPerformanceCounter();
-
-        FrameProfiler_Add(&profiler, dt, t0, t1, t2, t3, t4);
+        if (app.vtable.render)
+            app.vtable.render(&app, &cmd);
+        // Frame frame = GPU_BeginFrame(&cmd, app.window->handle, &desc);
+        //
+        // uint64_t t2 = SDL_GetPerformanceCounter(), t3;
+        //
+        // if (frame.swapchainTexture) {
+        //     RenderPass pass = GPU_BeginRenderPass(&frame);
+        //
+        //     if (pass.handle) {
+        //         GPU_EndRenderPass(&pass);
+        //     }
+        //     profiler.acquiredFrames++;
+        //
+        //     t3 = SDL_GetPerformanceCounter();
+        //     GPU_SubmitCommand(&cmd);
+        // } else {
+        //     profiler.skippedFrames++;
+        //     SDL_CancelGPUCommandBuffer(cmd.handle);
+        //
+        //     t3 = SDL_GetPerformanceCounter();
+        // }
+        //
+        // uint64_t t4 = SDL_GetPerformanceCounter();
+        //
+        // FrameProfiler_Add(&profiler, dt, t0, t1, t2, t3, t4);
     }
 
 shutdown:

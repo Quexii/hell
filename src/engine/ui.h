@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define UI_MAX_CLIP_DEPTH 32
 
@@ -52,6 +53,9 @@ bool UI_Init(UI *ui, Batch *batch, uint32_t capacity);
 void UI_Begin(UI *ui);
 bool UI_PushClip(UI *ui, Rect rect);
 void UI_PopClip(UI *ui);
+bool UI_AppendVx(
+    UI *ui, Rect rect, Rect uv, Vec4 colors[4], UIDrawMode mode, Texture *texture, Sampler *sampler
+);
 bool UI_Append(
     UI *ui, Rect rect, Rect uv, Vec4 color, UIDrawMode mode, Texture *texture, Sampler *sampler
 );
@@ -59,6 +63,30 @@ bool UI_Append(
 static inline bool UI_Rect(UI *ui, float x, float y, float w, float h, Vec4 color) {
     return UI_Append(
         ui, (Rect){ x, y, w, h }, (Rect){ 0.f, 0.f, 1.f, 1.f }, color, UI_DRAW_SOLID, NULL, NULL
+    );
+}
+
+static inline bool UI_GradH(UI *ui, float x, float y, float w, float h, Vec4 color1, Vec4 color2) {
+    return UI_AppendVx(
+        ui,
+        (Rect){ x, y, w, h },
+        (Rect){ 0.0f, 0.0f, 1.0f, 1.0f },
+        (Vec4[4]){ color1, color2, color2, color1 },
+        UI_DRAW_SOLID,
+        NULL,
+        NULL
+    );
+}
+
+static inline bool UI_GradV(UI *ui, float x, float y, float w, float h, Vec4 color1, Vec4 color2) {
+    return UI_AppendVx(
+        ui,
+        (Rect){ x, y, w, h },
+        (Rect){ 0.0f, 0.0f, 1.0f, 1.0f },
+        (Vec4[4]){ color1, color1, color2, color2 },
+        UI_DRAW_SOLID,
+        NULL,
+        NULL
     );
 }
 

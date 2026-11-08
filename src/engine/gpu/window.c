@@ -55,7 +55,7 @@ void Window_Init(Window *window) {
         exit(EXIT_FAILURE);
     }
 
-    // SDL_SetGPUSwapchainParameters(window->gpuDevice, window->handle, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_MAILBOX);
+    SDL_SetGPUSwapchainParameters(window->gpuDevice, window->handle, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_MAILBOX);
     SDL_SetGPUAllowedFramesInFlight(window->gpuDevice, 3);
 
     window->display      = GetWindowDisplay(window);

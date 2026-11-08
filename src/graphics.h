@@ -10,7 +10,7 @@
 typedef struct {
     GraphicsPipeline bulletPipeline, uiPipeline;
     Sampler samplerLinear, samplerNearest;
-    Texture white, atlasBullets, fontCinzelTexture, fontRajdhaniTexture, fontMontserratTexture;
+    Texture white, atlasBullets, atlasGeneric, fontCinzelTexture, fontRajdhaniTexture, fontMontserratTexture;
     Font fontCinzel, fontRajdhani, fontMonsterrat;
 } Graphics;
 

@@ -53,7 +53,9 @@ void UI_PopClip(UI *ui) {
         ui->clipDepth--;
 }
 
-bool UI_Append(UI *ui, Rect rect, Rect uv, Vec4 color, UIDrawMode mode, Texture *texture, Sampler *sampler) {
+bool UI_AppendVx(
+    UI *ui, Rect rect, Rect uv, Vec4 colors[4], UIDrawMode mode, Texture *texture, Sampler *sampler
+) {
     UICommand *last = ui->count ? &ui->commands[ui->count - 1] : NULL;
 
     const Rect *clip = ui->clipDepth ? &ui->clipStack[ui->clipDepth - 1] : NULL;
@@ -86,35 +88,43 @@ bool UI_Append(UI *ui, Rect rect, Rect uv, Vec4 color, UIDrawMode mode, Texture 
     vertices[0] = (UIVertex){
         { rect.x, rect.y },
         { uv.x,   uv.y   },
-        color, mode
+        colors[0], mode
     };
     vertices[1] = (UIVertex){
         { rect.x + rect.w, rect.y },
         { uv.x + uv.w,     uv.y   },
-        color, mode
+        colors[1], mode
     };
     vertices[2] = (UIVertex){
         { rect.x + rect.w, rect.y + rect.h },
         { uv.x + uv.w,     uv.y + uv.h     },
-        color, mode
+        colors[2], mode
     };
     vertices[3] = (UIVertex){
         { rect.x, rect.y },
         { uv.x,   uv.y   },
-        color, mode
+        colors[0], mode
     };
     vertices[4] = (UIVertex){
         { rect.x, rect.y + rect.h },
         { uv.x,   uv.y + uv.h     },
-        color, mode
+        colors[3], mode
     };
     vertices[5] = (UIVertex){
         { rect.x + rect.w, rect.y + rect.h },
         { uv.x + uv.w,     uv.y + uv.h     },
-        color, mode
+        colors[2], mode
     };
 
     return true;
+}
+
+bool UI_Append(
+    UI *ui, Rect rect, Rect uv, Vec4 color, UIDrawMode mode, Texture *texture, Sampler *sampler
+) {
+    return UI_AppendVx(
+        ui, rect, uv, (Vec4[4]){ color, color, color, color }, mode, texture, sampler
+    );
 }
 
 void UI_Draw(Renderer2D *r, RenderPass *pass, void *user) {
