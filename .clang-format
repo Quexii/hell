@@ -1,0 +1,54 @@
+Language: C
+
+BasedOnStyle: LLVM
+
+IndentWidth: 4
+ContinuationIndentWidth: 4
+UseTab: Never
+TabWidth: 4
+
+BreakBeforeBraces: Attach
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+AlwaysBreakAfterReturnType: None
+BinPackParameters: false
+BinPackArguments: false
+
+AlignAfterOpenBracket: BlockIndent
+AlignOperands: Align
+AlignConsecutiveAssignments: None 
+AlignConsecutiveDeclarations: None
+AlignTrailingComments: true
+AlignArrayOfStructures: Left
+
+PointerAlignment: Right
+
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceBeforeAssignmentOperators: true
+
+ColumnLimit: 100
+
+SortIncludes: true
+IncludeBlocks: Regroup
+
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+IndentCaseLabels: true
+IndentCaseBlocks: true
+
+ReflowComments: true
+SeparateDefinitionBlocks: Always
+Cpp11BracedListStyle: false
+BinPackLongBracedList: false
+
+StatementMacros:
+  - GLFW_CALL
+
+PackConstructorInitializers: Never
