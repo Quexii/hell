@@ -4,9 +4,9 @@
 #include "engine/gpu/gpu.h"
 #include <stdint.h>
 
-#define PLAYFIELD_WIDTH 480
+#define PLAYFIELD_WIDTH 500
 #define PLAYFIELD_HEIGHT 640
-#define PLAYFIELD_RENDER_WIDTH 960
+#define PLAYFIELD_RENDER_WIDTH 1000
 #define PLAYFIELD_RENDER_HEIGHT 1280
 
 typedef struct {

@@ -22,8 +22,9 @@ bool BulletSim_Create(BulletSim *sim, uint32_t capacity) {
     sim->spriteIDs = calloc(capacity, sizeof(uint32_t));
     sim->tints = calloc(capacity, sizeof(uint32_t));
 
-    if (!sim->capacity || !sim->positions || !sim->sizes || !sim->rotations || !sim->angularVelocities ||
-        !sim->life || !sim->rotationModes || !sim->spriteIDs || !sim->tints) {
+    if (!sim->capacity || !sim->positions || !sim->velocities || !sim->sizes || !sim->rotations ||
+        !sim->angularVelocities || !sim->life || !sim->rotationModes || !sim->spriteIDs ||
+        !sim->tints) {
         BulletSim_Destory(sim);
         return false;
     }

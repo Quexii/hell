@@ -121,7 +121,12 @@ static bool Game_Init(Application *app) {
         return false;
 
     g->pattern = Pattern_Create(
-        Pattern_Mirrored, (Vec2){ .x = PLAYFIELD_WIDTH / 2.0f, .y = PLAYFIELD_HEIGHT / 2.0f }, 0.4f
+        (PatternTimer[]){
+            (PatternTimer){ .desc = (SchedDesc){ .fn = Pattern_Test, .interval = 0.15f } },
+            (PatternTimer){ .desc = (SchedDesc){ .fn = Pattern_Mirrored, .interval = 0.4f } },
+        },
+        2,
+        (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT / 2.0f }
     );
 
     player.position = (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT - 40.f };
@@ -191,18 +196,29 @@ static void Game_Event(Application *app, const SDL_Event *event) {
 static void Game_Update(Application *app, float dt) {
     Game *g = app->userdata;
 
-    if (Input_KeyDown(SDL_SCANCODE_A))
-        player.position.x -= 2.f;
-    if (Input_KeyDown(SDL_SCANCODE_D))
-        player.position.x += 2.f;
-    if (Input_KeyDown(SDL_SCANCODE_W))
-        player.position.y -= 2.f;
-    if (Input_KeyDown(SDL_SCANCODE_S))
-        player.position.y += 2.f;
+    float speed = 240.f;
+
+    if (Input_KeyDown(SDL_SCANCODE_LSHIFT))
+        speed *= 0.4f;
+
+    Vec2 movement = { (float) Input_KeyDown(SDL_SCANCODE_D) - (float) Input_KeyDown(SDL_SCANCODE_A),
+
+                      (float) Input_KeyDown(SDL_SCANCODE_S) -
+                          (float) Input_KeyDown(SDL_SCANCODE_W) };
+
+    float len = sqrtf(movement.x * movement.x + movement.y * movement.y);
+
+    if (len > 0.f) {
+        movement.x /= len;
+        movement.y /= len;
+    }
+
+    player.position.x += movement.x * speed * dt;
+    player.position.y += movement.y * speed * dt;
 
     Pattern_Update(&g->pattern, &g->bullets, dt);
 
-    BulletSim_Update(&g->bullets, dt, PLAYFIELD_RENDER_WIDTH, PLAYFIELD_RENDER_HEIGHT);
+    BulletSim_Update(&g->bullets, dt, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT);
 
     // g->dtTimer += dt;
 }
@@ -218,7 +234,7 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         if (out) {
             out[0] = (BulletData){
                 .position = player.position,
-                .size = { 24.f,                           24.f                            },
+                .size = { 18.f, 18.f },
                 .rotation = 0.f,
                 .spriteID = 0,
                 .tint = RGBA8(255, 255, 255, 255)
@@ -301,6 +317,8 @@ static void Game_Render(Application *app, CommandBuffer *cmd) {
 static void Game_Cleanup(Application *app) {
     Game *g = app->userdata;
     Device device = app->window->gpuDevice;
+
+    Pattern_Destroy(&g->pattern);
 
     GPU_ReleaseTexture(&g->playfield.target);
     BulletSim_Destory(&g->bullets);
