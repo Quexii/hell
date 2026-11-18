@@ -8,6 +8,7 @@
 #include "engine/renderer.h"
 #include "engine/ui.h"
 #include "graphics.h"
+#include "level.h"
 #include "pattern.h"
 #include "patterns.h"
 #include "playfield.h"
@@ -30,12 +31,6 @@ typedef struct {
 } SSBO_EntityUVs;
 
 static Game game = { 0 };
-
-typedef struct {
-    Vec2 position;
-} Player;
-
-static Player player;
 
 static bool Game_Init(Application *app) {
     Game *g = app->userdata;
@@ -102,16 +97,31 @@ static bool Game_Init(Application *app) {
         ))
         return false;
 
+    if (!Batch_Create(
+            &g->dbgBatch,
+            device,
+            &(BatchDesc){
+                .pipeline = g->gfx.debugWorldPipeline,
+                .capacity = 10000,
+                .stride = sizeof(VertexDebug_W),
+                .instanced = false,
+                .target = &g->playfield.target,
+            }
+        ))
+        return false;
+
     g->batches[0] = &g->entitiesBatch;
     g->batches[1] = &g->bulletBatch;
-    g->batches[2] = &g->uiBatch;
-    g->r2d = R2D_Create(g->batches, app->window, 3);
+    g->batches[2] = &g->dbgBatch;
+    g->batches[3] = &g->uiBatch;
+    g->r2d = R2D_Create(g->batches, app->window, 4);
 
     if (!UI_Init(&g->ui, &g->uiBatch, 10000))
         return false;
 
     Batch_SetViewport(&g->entitiesBatch, (float) PLAYFIELD_WIDTH, (float) PLAYFIELD_HEIGHT);
     Batch_SetViewport(&g->bulletBatch, (float) PLAYFIELD_WIDTH, (float) PLAYFIELD_HEIGHT);
+    Batch_SetViewport(&g->dbgBatch, (float) PLAYFIELD_WIDTH, (float) PLAYFIELD_HEIGHT);
     Batch_SetViewport(&g->uiBatch, (float) app->window->width, (float) app->window->height);
 
     if (!Playfield_Init(&g->playfield, device))
@@ -120,16 +130,12 @@ static bool Game_Init(Application *app) {
     if (!BulletSim_Create(&g->bullets, MAX_BULLETS))
         return false;
 
-    g->pattern = Pattern_Create(
-        (PatternTimer[]){
-            (PatternTimer){ .desc = (SchedDesc){ .fn = Pattern_Test, .interval = 0.15f } },
-            (PatternTimer){ .desc = (SchedDesc){ .fn = Pattern_Mirrored, .interval = 0.4f } },
-        },
-        2,
-        (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT / 2.0f }
-    );
+    Level_LoadEnemies(&g->level);
+    Level_LoadStages(&g->level);
+    Level_StartStage(&g->level, STAGE_ID_TEST);
 
-    player.position = (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT - 40.f };
+    printf("%i\n", g->level.stages->eventCount);
+    g->level.player.position = (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT - 40.f };
 
     return true;
 }
@@ -147,7 +153,7 @@ static bool Game_Upload(Application *app, CopyPass *pass) {
         },
     };
 
-    SSBO_EntityUVs ssboSprites = { .uv = { { 0.0f, 0.0f, 0.09375f, 0.09375f } } };
+    SSBO_EntityUVs ssboSprites = { .uv = { { 0.0f, 0.0f, 0.093750f, 0.093750f } } };
 
     UploadAllocation ssboBulletsAlloc, ssboSpritesAlloc;
 
@@ -170,7 +176,7 @@ static bool Game_Upload(Application *app, CopyPass *pass) {
         return false;
 
     if (!UploadArena_UploadBuffer(
-            &g->r2d.arena, pass, &g->ssboEntityUVs, 0, ssboBulletsAlloc, false
+            &g->r2d.arena, pass, &g->ssboEntityUVs, 0, ssboSpritesAlloc, false
         ))
         return false;
 
@@ -213,14 +219,12 @@ static void Game_Update(Application *app, float dt) {
         movement.y /= len;
     }
 
-    player.position.x += movement.x * speed * dt;
-    player.position.y += movement.y * speed * dt;
+    g->level.player.position.x += movement.x * speed * dt;
+    g->level.player.position.y += movement.y * speed * dt;
 
-    Pattern_Update(&g->pattern, &g->bullets, dt);
+    Level_Tick(&g->level, app, dt);
 
     BulletSim_Update(&g->bullets, dt, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT);
-
-    // g->dtTimer += dt;
 }
 
 static void Game_Prepare(Application *app, CommandBuffer *cmd) {
@@ -233,8 +237,8 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         BulletData *out = Batch_Reserve(&g->entitiesBatch, 1);
         if (out) {
             out[0] = (BulletData){
-                .position = player.position,
-                .size = { 18.f, 18.f },
+                .position = g->level.player.position,
+                .size = { 10.f, 10.f },
                 .rotation = 0.f,
                 .spriteID = 0,
                 .tint = RGBA8(255, 255, 255, 255)
@@ -243,7 +247,7 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
     }
 
     if (sim->count > 0) {
-        BulletData *out = Batch_Reserve(&g->bulletBatch, sim->count);
+        BulletData *out = Batch_Reserve(&g->bulletBatch, sim->count + 0);
 
         if (out) {
             for (uint32_t i = 0; i < sim->count; i++) {
@@ -268,6 +272,42 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
                     20.f + (availH - PLAYFIELD_HEIGHT * scale) * 0.5f,
                     PLAYFIELD_WIDTH * scale,
                     PLAYFIELD_HEIGHT * scale };
+    { // Debug Layer
+        RDG_Line(
+            &g->dbgBatch,
+            PLAYFIELD_WIDTH / 2.f,
+            0.f,
+            PLAYFIELD_WIDTH / 2.f,
+            PLAYFIELD_HEIGHT,
+            (Vec3){ 1.f, 1.f, 1.f }
+        );
+        RDG_Line(
+            &g->dbgBatch,
+            0.f,
+            PLAYFIELD_HEIGHT / 2.f,
+            PLAYFIELD_WIDTH,
+            PLAYFIELD_HEIGHT / 2.f,
+            (Vec3){ 1.f, 1.f, 1.f }
+        );
+        RDG_Rect(
+            &g->dbgBatch,
+            g->level.player.position.x - 20,
+            g->level.player.position.y - 30,
+            40.f,
+            60.f,
+            (Vec3){ 0.f, 1.f, 0.f }
+        );
+
+        RDG_Circle(
+            &g->dbgBatch,
+            g->level.player.position.x,
+            g->level.player.position.y,
+            6.f,
+            (Vec3){ 1.f, 0.f, 0.f }
+        );
+    }
+
+    Level_Draw(&g->level, app, cmd);
 
     UI_Begin(&g->ui);
     UI_GradV(
@@ -301,8 +341,14 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
     );
 
     char dbgStr[128];
-    sprintf(dbgStr, "FPS: %i", (int) app->window->frameTimer.fps);
-    UI_Text(&g->ui, &g->gfx.fontRajdhani, dbgStr, (Vec2){ 10.f, 10.f }, 32.f, WHITE);
+    sprintf(
+        dbgStr,
+        "FPS: %i\nX: %f, y: %f",
+        (int) app->window->frameTimer.fps,
+        g->level.player.position.x,
+        g->level.player.position.y
+    );
+    UI_Text(&g->ui, &g->gfx.fontMonsterrat, dbgStr, (Vec2){ 10.f, 10.f }, 18.f, WHITE);
 
     R2D_Upload(&g->r2d, cmd);
 }
@@ -318,7 +364,7 @@ static void Game_Cleanup(Application *app) {
     Game *g = app->userdata;
     Device device = app->window->gpuDevice;
 
-    Pattern_Destroy(&g->pattern);
+    Level_Destroy(&g->level);
 
     GPU_ReleaseTexture(&g->playfield.target);
     BulletSim_Destory(&g->bullets);
@@ -327,6 +373,7 @@ static void Game_Cleanup(Application *app) {
     Batch_Release(&g->uiBatch);
     Batch_Release(&g->bulletBatch);
     Batch_Release(&g->entitiesBatch);
+    Batch_Release(&g->dbgBatch);
 
     if (g->ssboEntityUVs.handle)
         GPU_ReleaseBuffer(&g->ssboEntityUVs);

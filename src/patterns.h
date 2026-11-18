@@ -23,10 +23,10 @@ static inline void Pattern_Mirrored(Pattern *p, PatternTimer *tm, BulletSim *bul
                 bullets,
                 &(BulletDesc){
                     .position = p->origin,
-                    .velocity = { dir.x * speed, dir.y * speed                 },
-                    .size = { 24.f,          tm->desc.emitCount % 2 ? 12.f : 24.f },
+                    .velocity = { dir.x * speed, dir.y * speed                   },
+                    .size = { 24.f,          tm->emitCount % 2 ? 12.f : 24.f },
                     .rotationMode = BULLET_ROTATION_VELOCITY,
-                    .spriteID = tm->desc.emitCount % 2,
+                    .spriteID = tm->emitCount % 2,
                     .tint = RGBA8(255, 255, 255, 255)
             }
             );
@@ -50,5 +50,16 @@ static inline void Pattern_Test(Pattern *p, PatternTimer *tm, BulletSim *bullets
     }
     );
 }
+
+// desc
+static const SchedDesc Pattern_TestSchedules[] = {
+    { .fn = Pattern_Test,     .interval = 0.15f },
+    { .fn = Pattern_Mirrored, .interval = 0.4f  }
+};
+
+static const PatternDesc Pattern_TestDesc = { .scheds = Pattern_TestSchedules,
+                                              .count = sizeof(Pattern_TestSchedules) /
+                                                       sizeof(Pattern_TestSchedules[0]),
+                                              .duration = 5.0f };
 
 #endif // BULLET_PATTERNS_H

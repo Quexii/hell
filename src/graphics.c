@@ -48,9 +48,25 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
                               .stage = SHADERSTAGE_FRAGMENT,
                               .main = "main",
                               .samplers = 1 }
+           ),
+           shVertDbgWrld = GPU_LoadShader(
+               device,
+               &(ShaderDesc){ .path = "debug_world.vert.spv",
+                              .stage = SHADERSTAGE_VERTEX,
+                              .main = "main",
+                              .uniformBuffers = 1 }
+           ),
+           shFragDbgWrld = GPU_LoadShader(
+               device,
+               &(ShaderDesc){
+                   .path = "debug_world.frag.spv",
+                   .stage = SHADERSTAGE_FRAGMENT,
+                   .main = "main",
+               }
            );
 
-    if (!shVertBullets.handle || !shFragBullets.handle || !shVertUI.handle || !shFragUI.handle) {
+    if (!shVertBullets.handle || !shFragBullets.handle || !shVertUI.handle || !shFragUI.handle ||
+        !shVertDbgWrld.handle || !shFragDbgWrld.handle) {
         if (shVertBullets.handle)
             SDL_ReleaseGPUShader(device, shVertBullets.handle);
         if (shFragBullets.handle)
@@ -59,6 +75,10 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
             SDL_ReleaseGPUShader(device, shVertUI.handle);
         if (shFragUI.handle)
             SDL_ReleaseGPUShader(device, shFragUI.handle);
+        if (shVertDbgWrld.handle)
+            SDL_ReleaseGPUShader(device, shVertDbgWrld.handle);
+        if (shFragDbgWrld.handle)
+            SDL_ReleaseGPUShader(device, shFragDbgWrld.handle);
     }
 
     VertexLayout layoutBullets = VERTEX_LAYOUT(
@@ -76,6 +96,10 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
         VERTEX_ATTR(UIVertex, uv, 1, 0),
         VERTEX_ATTR(UIVertex, color, 2, 0),
         VERTEX_ATTR(UIVertex, mode, 3, 0)
+    );
+
+    VertexLayout layoutDebugWorld = VERTEX_LAYOUT(
+        VERTEX_ATTR(VertexDebug_W, position, 0, 0), VERTEX_ATTR(VertexDebug_W, color, 1, 0),
     );
 
     g->bulletPipeline = GPU_CreatePipeline(
@@ -113,10 +137,30 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
     }
     );
 
+    g->debugWorldPipeline = GPU_CreatePipeline(
+        device,
+        window->handle,
+        &(PipelineDesc){
+            .vertexShader = &shVertDbgWrld,
+            .fragmentShader = &shFragDbgWrld,
+            .layout = &layoutDebugWorld,
+            .blend = GPU_BLEND_ALPHA,
+            .buffers =
+                (VertexBufferDesc[]){
+                                     VERTEX_BUFFER(VertexDebug_W, 0, SDL_GPU_VERTEXINPUTRATE_VERTEX),
+                                     },
+            .numBuffers = 1,
+            .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+            .primitive = SDL_GPU_PRIMITIVETYPE_LINELIST
+    }
+    );
+
     GPU_ReleaseShader(&shVertBullets);
     GPU_ReleaseShader(&shFragBullets);
     GPU_ReleaseShader(&shVertUI);
     GPU_ReleaseShader(&shFragUI);
+    GPU_ReleaseShader(&shVertDbgWrld);
+    GPU_ReleaseShader(&shFragDbgWrld);
 
     if (!g->uiPipeline || !g->bulletPipeline)
         return false;
@@ -183,4 +227,6 @@ void Graphics_Release_Resources(Graphics *g, Device device) {
         GPU_ReleasePipeline(device, g->bulletPipeline);
     if (g->uiPipeline)
         GPU_ReleasePipeline(device, g->uiPipeline);
+    if (g->debugWorldPipeline)
+        GPU_ReleasePipeline(device, g->debugWorldPipeline);
 }

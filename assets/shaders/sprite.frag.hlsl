@@ -23,6 +23,8 @@ float4 main(VSOutput input) : SV_Target0 {
     float4 mask = texture0.Sample(input.uv);
     float4 tint = UnpackRGBA8(input.instance.tint);
 
+    //if (mask.a <= 0.1f) return float4(0.0, 1.0, 0.0, 1.0);
+
     return mask * tint;
 }
 

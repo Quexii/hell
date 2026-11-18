@@ -1,50 +1,72 @@
 #include "pattern.h"
 
-#include <stdint.h>
-#include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
-#include <string.h>
 
-Pattern Pattern_Create(PatternTimer timers[], uint32_t timerCount, Vec2 origin) {
-    if (timerCount <= 0 || !timers) {
-        fprintf(stderr, "Invalid `timerCount=%i` or `timers%p` when creating a pattern!\n", timerCount, (void*)timers);
-        exit(EXIT_FAILURE);
+Pattern Pattern_Create(const PatternDesc *desc, Vec2 origin) {
+    Pattern p = { 0 };
+
+    if (!desc || !desc->scheds || desc->count == 0 || !isfinite(desc->duration) ||
+        desc->duration <= 0.0f)
+        return p;
+
+    for (uint32_t i = 0; i < desc->count; i++) {
+        if (!desc->scheds[i].fn || !isfinite(desc->scheds[i].interval) ||
+            desc->scheds[i].interval <= 0.0f)
+            return p;
     }
 
-    PatternTimer *timersCopy = malloc(sizeof(PatternTimer) * timerCount);
-    memcpy(timersCopy, timers, sizeof(PatternTimer) * timerCount);
+    p.timers = calloc(desc->count, sizeof(*p.timers));
+    if (!p.timers)
+        return (Pattern){ 0 };
 
-    if (!timersCopy) {
-        fprintf(stderr, "Failed to copy timers when creating a pattern!\n");
-        exit(EXIT_FAILURE);
-    }
+    p.timerCount = desc->count;
+    p.duration = desc->duration;
+    p.origin = origin;
 
-    return (Pattern){ .timers = timersCopy, .timerCount = timerCount, .origin = origin };
+    for (uint32_t i = 0; i < desc->count; i++)
+        p.timers[i].desc = desc->scheds[i];
+
+    return p;
 }
 
-void Pattern_Update(Pattern *p, BulletSim *bullets, float dt) {
-    if (!p || p->timerCount == 0 || !p->timers)
-        return;
+bool Pattern_Update(Pattern *p, BulletSim *bullets, float dt) {
+    if (!p || !p->timers || !p->timerCount || !bullets)
+        return true;
 
-    p->time += dt;
+    if (dt <= 0.0f)
+        return p->time >= p->duration;
+
+    float remaining = p->duration - p->time;
+
+    if (remaining <= 0.0f)
+        return true;
+
+    float step = fminf(dt, remaining);
 
     for (uint32_t i = 0; i < p->timerCount; i++) {
-        PatternTimer *pt = &p->timers[i];
+        PatternTimer *tm = &p->timers[i];
 
-        pt->timer += dt;
-        while (pt->timer >= pt->desc.interval) {
-            pt->desc.fn(p, pt, bullets);
-            pt->desc.emitCount++;
-            pt->elapsed += pt->desc.interval;
-            pt->timer -= pt->desc.interval;
+        tm->timer += step;
+
+        while (tm->timer >= tm->desc.interval) {
+            tm->desc.fn(p, tm, bullets);
+
+            tm->emitCount++;
+            tm->elapsed += tm->desc.interval;
+            tm->timer -= tm->desc.interval;
         }
     }
+
+    p->time += step;
+
+    return p->time >= p->duration;
 }
 
-void Pattern_Destroy(Pattern *pattern) {
-    if (!pattern || !pattern->timers) {
-        fprintf(stderr, "Unable to destroy pattern! (self=%p)\n", (void*)pattern);
+void Pattern_Destroy(Pattern *p) {
+    if (!p)
         return;
-    }
-    free(pattern->timers);
+
+    free(p->timers);
+    *p = (Pattern){ 0 };
 }
