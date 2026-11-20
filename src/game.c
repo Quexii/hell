@@ -124,15 +124,11 @@ static bool Game_Init(Application *app) {
     if (!Playfield_Init(&g->playfield, device))
         return false;
 
-    if (!BulletSim_Create(&g->bullets, MAX_BULLETS))
-        return false;
-
-    Level_LoadEnemies(&g->level);
-    Level_LoadStages(&g->level);
+    Level_LoadEnemies();
+    Level_LoadStages();
     Level_StartStage(&g->level, STAGE_ID_TEST);
 
-    printf("%i\n", g->level.stages->eventCount);
-    g->level.player.position = (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT - 40.f };
+    g->level.world.player.position = (Vec2){ PLAYFIELD_WIDTH / 2.0f, PLAYFIELD_HEIGHT - 40.f };
 
     return true;
 }
@@ -205,13 +201,10 @@ static void Game_Update(Application *app, float dt) {
     Game *g = app->userdata;
 
     Level_Tick(&g->level, app, dt);
-
-    BulletSim_Update(&g->bullets, dt, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT);
 }
 
 static void Game_Prepare(Application *app, CommandBuffer *cmd) {
     Game *g = app->userdata;
-    BulletSim *sim = &g->bullets;
 
     R2D_Begin(&g->r2d);
 
@@ -219,31 +212,12 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         BulletData *out = Batch_Reserve(&g->entitiesBatch, 1);
         if (out) {
             out[0] = (BulletData){
-                .position = g->level.player.position,
+                .position = g->level.world.player.position,
                 .size = { 10.f, 10.f },
                 .rotation = 0.f,
                 .spriteID = 0,
                 .tint = RGBA8(255, 255, 255, 255)
             };
-        }
-    }
-
-    if (sim->count > 0) {
-        BulletData *out = Batch_Reserve(&g->bulletBatch, sim->count);
-
-        if (out) {
-            for (uint32_t i = 0; i < sim->count; i++) {
-                out[i] = (BulletData){
-                    .position = sim->positions[i],
-                    .rotation = sim->rotations[i],
-                    .size = sim->sizes[i],
-                    .spriteID = sim->spriteIDs[i],
-                    .tint = sim->tints[i], // MutCol_A(sim->tints[i], (uint8_t) Clamp(255 *
-                                           // sim->life[i], 0, 255))
-                };
-            }
-        } else {
-            SDL_Log("Bullet batch full: count=%u capacity=%u", sim->count, g->bulletBatch.capacity);
         }
     }
 
@@ -255,26 +229,6 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
                     20.f + (availH - PLAYFIELD_HEIGHT * scale) * 0.5f,
                     PLAYFIELD_WIDTH * scale,
                     PLAYFIELD_HEIGHT * scale };
-    { // Debug Layer
-        RDG_Line(
-            &g->dbgBatch,
-            PLAYFIELD_WIDTH / 2.f,
-            0.f,
-            PLAYFIELD_WIDTH / 2.f,
-            PLAYFIELD_HEIGHT,
-            2,
-            (Vec3){ 1.f, 1.f, 1.f }
-        );
-        RDG_Line(
-            &g->dbgBatch,
-            0.f,
-            PLAYFIELD_HEIGHT / 2.f,
-            PLAYFIELD_WIDTH,
-            PLAYFIELD_HEIGHT / 2.f,
-            2,
-            (Vec3){ 1.f, 1.f, 1.f }
-        );
-    }
 
     float uiX = pfDest.x + pfDest.w + 20.f;
     float uiY = pfDest.y + 20.f;
@@ -306,7 +260,7 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         (Vec4){ 0.2, 0.2, 0.4, 1.0 }
     );
     UI_Rect(&g->ui, uiX + 5.f, uiY + 5.f, uiW - 10.f, uiH - 10.f, BLACK);
-    
+
     UI_GradV(
         &g->ui,
         pfDest.x - 3.f,
@@ -332,11 +286,17 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         text,
         "FPS: %i\nX: %f, y: %f",
         (int) app->window->frameTimer.fps,
-        g->level.player.position.x,
-        g->level.player.position.y
+        g->level.world.player.position.x,
+        g->level.world.player.position.y
     );
     UI_Text(&g->ui, &g->gfx.fontMonsterrat, text, (Vec2){ 10.f, 10.f }, 18.f, WHITE);
-    sprintf(text, "Health: %i\nBombs: %i", g->level.player.hearts, g->level.player.bombs);
+    sprintf(
+        text,
+        "Health: %i\nBombs: %i\nCurrent Stage: %s",
+        g->level.world.player.hearts,
+        g->level.world.player.bombs,
+        stageDefinitions[game.level.currentStage].name
+    );
     UI_Text(&g->ui, &g->gfx.fontMonsterrat, text, (Vec2){ uiX + 16, uiY + 16 }, 22.f, WHITE);
 
     R2D_Upload(&g->r2d, cmd);
@@ -356,7 +316,6 @@ static void Game_Cleanup(Application *app) {
     Level_Destroy(&g->level);
 
     GPU_ReleaseTexture(&g->playfield.target);
-    BulletSim_Destory(&g->bullets);
     UI_Destroy(&g->ui);
     R2D_Destroy(&g->r2d);
     Batch_Release(&g->uiBatch);

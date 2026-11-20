@@ -3,7 +3,6 @@
 
 #include "bullets.h"
 #include "engine/maths.h"
-#include "level.h"
 #include "pattern.h"
 
 #include <math.h>

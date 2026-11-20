@@ -71,6 +71,7 @@ typedef enum {
 
 typedef SDL_GPUGraphicsPipeline *GraphicsPipeline;
 typedef SDL_GPUDevice *Device;
+typedef struct CommandBuffer CommandBuffer;
 
 typedef struct {
     uint32_t location;
@@ -168,10 +169,10 @@ typedef struct {
     size_t size;
 } TransferBuffer;
 
-typedef struct {
+struct CommandBuffer {
     SDL_GPUCommandBuffer *handle;
     Device device;
-} CommandBuffer;
+};
 
 typedef struct {
     SDL_FColor clearColor;

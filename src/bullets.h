@@ -1,8 +1,8 @@
 #ifndef GAME_BULLETS_H
 #define GAME_BULLETS_H
 
+#include "collider.h"
 #include "engine/maths.h"
-#include "level.h"
 
 #include <stdbool.h>
 #include <stdint.h>

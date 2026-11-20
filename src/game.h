@@ -1,7 +1,6 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "bullets.h"
 #include "engine/gpu/gpu.h"
 #include "engine/renderer.h"
 #include "engine/ui.h"
@@ -21,7 +20,6 @@ typedef struct {
     UI ui;
     Playfield playfield;
     Level level;
-    BulletSim bullets;
     float spawnTimer, dtTimer;
     uint32_t spawnedCount;
 } Game;

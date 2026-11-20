@@ -110,7 +110,7 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
             .fragmentShader = &shFragBullets,
             .layout = &layoutBullets,
             .blend = GPU_BLEND_CUSTOM,
-            .customBlend = BLEND_ADDITIVE,
+            .customBlend = BLEND_ALPHA,
             .buffers =
                 (VertexBufferDesc[]){
                                      VERTEX_BUFFER(MeshVertex, 0, SDL_GPU_VERTEXINPUTRATE_VERTEX),
