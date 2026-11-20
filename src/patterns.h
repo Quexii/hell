@@ -3,6 +3,7 @@
 
 #include "bullets.h"
 #include "engine/maths.h"
+#include "level.h"
 #include "pattern.h"
 
 #include <math.h>
@@ -19,6 +20,16 @@ static inline void Pattern_Mirrored(Pattern *p, PatternTimer *tm, BulletSim *bul
 
             Vec2 dir = AngleToDirection(angle);
 
+            Collier col = { 0 };
+            col.layer = COLLIDER_LAYER_ENEMY_BULLET;
+            if (!(tm->emitCount % 2)) {
+                col.type = COLLIDER_CIRCLE;
+                col.circle.radius = 24.f * 0.5f;
+            } else {
+                col.type = COLLIDER_OBB;
+                col.obb.halfSize = (Vec2){ 24.f * 0.5f, 12.f * 0.5f };
+            }
+
             BulletSim_Spawn(
                 bullets,
                 &(BulletDesc){
@@ -27,7 +38,8 @@ static inline void Pattern_Mirrored(Pattern *p, PatternTimer *tm, BulletSim *bul
                     .size = { 24.f,          tm->emitCount % 2 ? 12.f : 24.f },
                     .rotationMode = BULLET_ROTATION_VELOCITY,
                     .spriteID = tm->emitCount % 2,
-                    .tint = RGBA8(255, 255, 255, 255)
+                    .tint = RGBA8(255, 255, 255, 255),
+                    .collider = col,
             }
             );
         }
@@ -43,10 +55,16 @@ static inline void Pattern_Test(Pattern *p, PatternTimer *tm, BulletSim *bullets
         &(BulletDesc){
             .position = p->origin,
             .velocity = { dir.x * speed, dir.y * speed },
-            .size = { 24.f,          24.f          },
-            .rotationMode = BULLET_ROTATION_FIXED,
-            .spriteID = BULLETTYPE_CIRCLE,
-            .tint = RGBA8(255, 255, 255, 255)
+            .size = { 4.f * 3,          7.f * 3          },
+            .rotationOffset = RAD270,
+            .rotationMode = BULLET_ROTATION_VELOCITY,
+            .spriteID = BULLETTYPE_KUNAI,
+            .tint = RGBA8(255, 255, 255, 255),
+            .collider = {
+                .type = COLLIDER_OBB,
+                .layer = COLLIDER_LAYER_ENEMY_BULLET,
+                .obb.halfSize = { 6.f, 10.5f },
+            },
     }
     );
 }

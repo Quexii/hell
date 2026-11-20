@@ -39,6 +39,12 @@ static const Vec4 RED = { 1.0f, 0.0f, 0.0f, 1.0 };
 static const Vec4 GREEN = { 0.0f, 1.0f, 0.0f, 1.0 };
 static const Vec4 BLUE = { 0.0f, 0.0f, 1.0f, 1.0 };
 
+static const Vec3 WHITE_3 = { 1.f, 1.f, 1.f };
+static const Vec3 BLACK_3 = { 0.f, 0.f, 0.f };
+static const Vec3 RED_3 = { 1.f, 0.f, 0.f };
+static const Vec3 GREEN_3 = { 0.f, 1.f, 0.f };
+static const Vec3 BLUE_3 = { 0.f, 0.f, 1.f };
+
 uint32_t RGBA8(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 uint32_t MutCol_R(uint32_t c, uint8_t v);
@@ -50,6 +56,8 @@ uint32_t MutCol_B(uint32_t c, uint8_t v);
 uint32_t MutCol_A(uint32_t c, uint8_t v);
 
 uint32_t Clamp(uint32_t v, uint32_t a, uint32_t b);
+
+float Clampf(float v, float a, float b);
 
 uint32_t Random(uint32_t min, uint32_t max);
 
@@ -116,6 +124,12 @@ float Vec2_Distance(Vec2 a, Vec2 b);
 Vec2 Vec2_Lerp(Vec2 a, Vec2 b, float t);
 
 Vec2 Vec2_Rotate(Vec2 v, float angle);
+
+Vec2 OBB_AxisX(float rotation);
+
+Vec2 OBB_AxisY(float rotation);
+
+float OBB_ProjectRadius(Vec2 axis, Vec2 halfSize, float rotation);
 
 Vec3 Vec3_Add(Vec3 a, Vec3 b);
 

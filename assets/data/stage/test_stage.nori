@@ -5,8 +5,8 @@ stage {
         {
             time = 10
             enemy = 0
-            health = 100
-            position = [160 -32]
+            health = 10
+            position = [100 -32]
         }
     ]
 }

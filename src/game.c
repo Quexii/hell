@@ -3,14 +3,11 @@
 #include "bullets.h"
 #include "engine/application.h"
 #include "engine/gpu/gpu.h"
-#include "engine/input.h"
 #include "engine/maths.h"
 #include "engine/renderer.h"
 #include "engine/ui.h"
 #include "graphics.h"
 #include "level.h"
-#include "pattern.h"
-#include "patterns.h"
 #include "playfield.h"
 
 #include <SDL3/SDL.h>
@@ -23,7 +20,7 @@
 #include <stdio.h>
 
 typedef struct {
-    Vec4 uv[BULLETTYPE_LAST];
+    Vec4 uv[7];
 } SSBO_BulletUVs;
 
 typedef struct {
@@ -102,7 +99,7 @@ static bool Game_Init(Application *app) {
             device,
             &(BatchDesc){
                 .pipeline = g->gfx.debugWorldPipeline,
-                .capacity = 10000,
+                .capacity = 60000,
                 .stride = sizeof(VertexDebug_W),
                 .instanced = false,
                 .target = &g->playfield.target,
@@ -148,8 +145,13 @@ static bool Game_Upload(Application *app, CopyPass *pass) {
 
     SSBO_BulletUVs ssboBullets = {
         .uv = {
-{ 0.000000, 0.000000, 0.187500, 0.187500 },
-{ 0.187500, 0.000000, 0.375000, 0.187500 },
+{ 0.000000f, 0.000000f, 0.125000f, 0.125000f },
+{  0.125000f, 0.000000f, 0.250000f, 0.125000f },
+{  0.000000f, 0.125000f, 0.062500f, 0.226562f },
+{  0.250000f, 0.015625f, 0.281250f, 0.078125f },
+{  0.296875f, 0.015625f, 0.328125f, 0.078125f },
+{  0.000000f, 0.953125f, 0.046875f, 1.000000f },
+{  0.046875f, 0.953125f, 0.093750f, 1.000000f },
         },
     };
 
@@ -202,26 +204,6 @@ static void Game_Event(Application *app, const SDL_Event *event) {
 static void Game_Update(Application *app, float dt) {
     Game *g = app->userdata;
 
-    float speed = 240.f;
-
-    if (Input_KeyDown(SDL_SCANCODE_LSHIFT))
-        speed *= 0.4f;
-
-    Vec2 movement = { (float) Input_KeyDown(SDL_SCANCODE_D) - (float) Input_KeyDown(SDL_SCANCODE_A),
-
-                      (float) Input_KeyDown(SDL_SCANCODE_S) -
-                          (float) Input_KeyDown(SDL_SCANCODE_W) };
-
-    float len = sqrtf(movement.x * movement.x + movement.y * movement.y);
-
-    if (len > 0.f) {
-        movement.x /= len;
-        movement.y /= len;
-    }
-
-    g->level.player.position.x += movement.x * speed * dt;
-    g->level.player.position.y += movement.y * speed * dt;
-
     Level_Tick(&g->level, app, dt);
 
     BulletSim_Update(&g->bullets, dt, PLAYFIELD_WIDTH, PLAYFIELD_HEIGHT);
@@ -247,7 +229,7 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
     }
 
     if (sim->count > 0) {
-        BulletData *out = Batch_Reserve(&g->bulletBatch, sim->count + 0);
+        BulletData *out = Batch_Reserve(&g->bulletBatch, sim->count);
 
         if (out) {
             for (uint32_t i = 0; i < sim->count; i++) {
@@ -256,7 +238,8 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
                     .rotation = sim->rotations[i],
                     .size = sim->sizes[i],
                     .spriteID = sim->spriteIDs[i],
-                    .tint = MutCol_A(sim->tints[i], (uint8_t) Clamp(255 * sim->life[i], 0, 255))
+                    .tint = sim->tints[i], // MutCol_A(sim->tints[i], (uint8_t) Clamp(255 *
+                                           // sim->life[i], 0, 255))
                 };
             }
         } else {
@@ -268,7 +251,7 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
     float availH = app->window->height - 40.f;
 
     float scale = fminf(availW / PLAYFIELD_WIDTH, availH / PLAYFIELD_HEIGHT);
-    Rect pfDest = { -180.f + (availW - PLAYFIELD_WIDTH * scale) * 0.5f,
+    Rect pfDest = { (availW - PLAYFIELD_WIDTH * scale) * 0.5f,
                     20.f + (availH - PLAYFIELD_HEIGHT * scale) * 0.5f,
                     PLAYFIELD_WIDTH * scale,
                     PLAYFIELD_HEIGHT * scale };
@@ -279,6 +262,7 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
             0.f,
             PLAYFIELD_WIDTH / 2.f,
             PLAYFIELD_HEIGHT,
+            2,
             (Vec3){ 1.f, 1.f, 1.f }
         );
         RDG_Line(
@@ -287,25 +271,15 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
             PLAYFIELD_HEIGHT / 2.f,
             PLAYFIELD_WIDTH,
             PLAYFIELD_HEIGHT / 2.f,
+            2,
             (Vec3){ 1.f, 1.f, 1.f }
         );
-        RDG_Rect(
-            &g->dbgBatch,
-            g->level.player.position.x - 20,
-            g->level.player.position.y - 30,
-            40.f,
-            60.f,
-            (Vec3){ 0.f, 1.f, 0.f }
-        );
-
-        RDG_Circle(
-            &g->dbgBatch,
-            g->level.player.position.x,
-            g->level.player.position.y,
-            6.f,
-            (Vec3){ 1.f, 0.f, 0.f }
-        );
     }
+
+    float uiX = pfDest.x + pfDest.w + 20.f;
+    float uiY = pfDest.y + 20.f;
+    float uiW = (app->window->width - pfDest.w) / 2.f - 40.f;
+    float uiH = pfDest.h - 40.f;
 
     Level_Draw(&g->level, app, cmd);
 
@@ -320,6 +294,19 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         (Vec4){ 0.3f, 0.3f, 0.5f, 1.0f }
     );
     UI_Rect(&g->ui, pfDest.x - 5.f, pfDest.y - 5.f, pfDest.w + 10.f, pfDest.h + 10.f, BLACK);
+
+    UI_Rect(&g->ui, uiX, uiY, uiW, uiH, BLACK);
+    UI_GradV(
+        &g->ui,
+        uiX + 2.f,
+        uiY + 2.f,
+        uiW - 4.f,
+        uiH - 4.f,
+        (Vec4){ 0.2, 0.2, 0.3, 1.0 },
+        (Vec4){ 0.2, 0.2, 0.4, 1.0 }
+    );
+    UI_Rect(&g->ui, uiX + 5.f, uiY + 5.f, uiW - 10.f, uiH - 10.f, BLACK);
+    
     UI_GradV(
         &g->ui,
         pfDest.x - 3.f,
@@ -340,15 +327,17 @@ static void Game_Prepare(Application *app, CommandBuffer *cmd) {
         (Vec4){ 1.0f, 1.0f, 1.0f, 1.0f }
     );
 
-    char dbgStr[128];
+    char text[128];
     sprintf(
-        dbgStr,
+        text,
         "FPS: %i\nX: %f, y: %f",
         (int) app->window->frameTimer.fps,
         g->level.player.position.x,
         g->level.player.position.y
     );
-    UI_Text(&g->ui, &g->gfx.fontMonsterrat, dbgStr, (Vec2){ 10.f, 10.f }, 18.f, WHITE);
+    UI_Text(&g->ui, &g->gfx.fontMonsterrat, text, (Vec2){ 10.f, 10.f }, 18.f, WHITE);
+    sprintf(text, "Health: %i\nBombs: %i", g->level.player.hearts, g->level.player.bombs);
+    UI_Text(&g->ui, &g->gfx.fontMonsterrat, text, (Vec2){ uiX + 16, uiY + 16 }, 22.f, WHITE);
 
     R2D_Upload(&g->r2d, cmd);
 }

@@ -151,7 +151,6 @@ bool Graphics_Init_Resources(Graphics *g, Window *window, Device device) {
                                      },
             .numBuffers = 1,
             .format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
-            .primitive = SDL_GPU_PRIMITIVETYPE_LINELIST
     }
     );
 

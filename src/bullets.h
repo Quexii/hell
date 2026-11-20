@@ -2,13 +2,21 @@
 #define GAME_BULLETS_H
 
 #include "engine/maths.h"
+#include "level.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 
 #define MAX_BULLETS 100000
 
-enum { BULLETTYPE_CIRCLE, BULLETTYPE_HEX, BULLETTYPE_LAST };
+enum {
+    BULLETTYPE_CIRCLE = 0,
+    BULLETTYPE_HEX,
+    BULLETTYPE_KUNAI,
+    BULLETTYPE_DARK_ICE_HEX,
+    BULLETTYPE_DARK_ICE_ETCH,
+    BULLETTYPE_LAST
+};
 
 typedef struct {
     Vec2 position, size;
@@ -24,15 +32,17 @@ typedef enum {
 
 typedef struct {
     Vec2 position, velocity, size;
-    float rotation, angularVelocity;
+    float rotation, rotationOffset, angularVelocity;
     BulletRotationMode rotationMode;
     uint32_t spriteID, tint;
+    Collier collider;
 } BulletDesc;
 
 typedef struct {
     Vec2 *positions, *velocities, *sizes;
-    float *rotations, *angularVelocities, *life;
+    float *rotations, *rotationOffsets, *angularVelocities, *life;
     BulletRotationMode *rotationModes;
+    Collier *colliders;
     uint32_t *spriteIDs, *tints, count, capacity;
 } BulletSim;
 

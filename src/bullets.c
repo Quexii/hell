@@ -16,15 +16,18 @@ bool BulletSim_Create(BulletSim *sim, uint32_t capacity) {
     sim->velocities = calloc(capacity, sizeof(Vec2));
     sim->sizes = calloc(capacity, sizeof(Vec2));
     sim->rotations = calloc(capacity, sizeof(float));
+    sim->rotationOffsets = calloc(capacity, sizeof(float));
     sim->angularVelocities = calloc(capacity, sizeof(float));
     sim->life = calloc(capacity, sizeof(float));
     sim->rotationModes = calloc(capacity, sizeof(BulletRotationMode));
+    sim->colliders = calloc(capacity, sizeof(Collier));
     sim->spriteIDs = calloc(capacity, sizeof(uint32_t));
     sim->tints = calloc(capacity, sizeof(uint32_t));
 
     if (!sim->capacity || !sim->positions || !sim->velocities || !sim->sizes || !sim->rotations ||
-        !sim->angularVelocities || !sim->life || !sim->rotationModes || !sim->spriteIDs ||
-        !sim->tints) {
+        !sim->rotationOffsets || !sim->angularVelocities || !sim->life || !sim->rotationModes ||
+        !sim->colliders ||
+        !sim->spriteIDs || !sim->tints) {
         BulletSim_Destory(sim);
         return false;
     }
@@ -40,9 +43,11 @@ void BulletSim_Destory(BulletSim *sim) {
     free(sim->velocities);
     free(sim->sizes);
     free(sim->rotations);
+    free(sim->rotationOffsets);
     free(sim->angularVelocities);
     free(sim->life);
     free(sim->rotationModes);
+    free(sim->colliders);
     free(sim->spriteIDs);
     free(sim->tints);
 
@@ -59,9 +64,11 @@ bool BulletSim_Spawn(BulletSim *b, BulletDesc *desc) {
     b->velocities[i] = desc->velocity;
     b->sizes[i] = desc->size;
     b->rotations[i] = desc->rotation;
+    b->rotationOffsets[i] = desc->rotationOffset;
     b->angularVelocities[i] = desc->angularVelocity;
     b->life[i] = 0.f;
     b->rotationModes[i] = desc->rotationMode;
+    b->colliders[i] = desc->collider;
     b->spriteIDs[i] = desc->spriteID;
     b->tints[i] = desc->tint;
 
@@ -81,9 +88,11 @@ void BulletSim_Remove(BulletSim *b, uint32_t i) {
     b->velocities[i] = b->velocities[last];
     b->sizes[i] = b->sizes[last];
     b->rotations[i] = b->rotations[last];
+    b->rotationOffsets[i] = b->rotationOffsets[last];
     b->angularVelocities[i] = b->angularVelocities[last];
     b->life[i] = b->life[last];
     b->rotationModes[i] = b->rotationModes[last];
+    b->colliders[i] = b->colliders[last];
     b->spriteIDs[i] = b->spriteIDs[last];
     b->tints[i] = b->tints[last];
 }
@@ -104,17 +113,23 @@ void BulletSim_Update(BulletSim *b, float dt, float width, float height) {
             case BULLET_ROTATION_VELOCITY:
                 if (b->velocities[i].x != 0.f || b->velocities[i].y != 0.f)
                     b->rotations[i] = atan2f(b->velocities[i].y, b->velocities[i].x);
+                b->rotations[i] += b->rotationOffsets[i];
                 break;
 
             case BULLET_ROTATION_SPIN:
-                b->rotations[i] += b->angularVelocities[i] * dt;
+                b->rotations[i] += b->angularVelocities[i] * dt + b->rotationOffsets[i];
                 break;
         }
+
+        if (b->colliders[i].type == COLLIDER_OBB)
+            b->colliders[i].obb.rotation = b->rotations[i];
+
         b->life[i] += dt;
 
         Vec2 p = b->positions[i];
 
-        if (p.x < -margin || p.x > width + margin || p.y < -margin || p.y > height + margin) {
+        if (b->life[i] < 0.f || p.x < -margin || p.x > width + margin ||
+            p.y < -margin || p.y > height + margin) {
             BulletSim_Remove(b, i);
             continue;
         }

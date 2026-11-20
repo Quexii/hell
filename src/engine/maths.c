@@ -32,6 +32,14 @@ uint32_t Clamp(uint32_t v, uint32_t a, uint32_t b) {
     return v;
 }
 
+float Clampf(float v, float a, float b) {
+    if (v < a)
+        return a;
+    if (v > b)
+        return b;
+    return v;
+}
+
 uint32_t Random(uint32_t min, uint32_t max) {
     return Clamp(rand(), min, max);
 }
@@ -131,6 +139,21 @@ Vec2 Vec2_Lerp(Vec2 a, Vec2 b, float t) {
 Vec2 Vec2_Rotate(Vec2 v, float angle) {
     float c = cosf(angle), s = sinf(angle);
     return (Vec2){ v.x * c - v.y * s, v.x * s + v.y * c };
+}
+
+Vec2 OBB_AxisX(float rotation) {
+    return (Vec2){ cosf(rotation), sinf(rotation) };
+}
+
+Vec2 OBB_AxisY(float rotation) {
+    return (Vec2){ -sinf(rotation), cosf(rotation) };
+}
+
+float OBB_ProjectRadius(Vec2 axis, Vec2 halfSize, float rotation) {
+    Vec2 x = OBB_AxisX(rotation);
+    Vec2 y = OBB_AxisY(rotation);
+
+    return halfSize.x * fabsf(Vec2_Dot(axis, x)) + halfSize.y * fabsf(Vec2_Dot(axis, y));
 }
 
 Vec3 Vec3_Add(Vec3 a, Vec3 b) {
